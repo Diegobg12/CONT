@@ -11,7 +11,8 @@ from sqlmodel import delete as sql_delete
 
 from app.config import get_settings
 from app.db import get_session
-from app.models import Cliente, Correccion, CuentaPUC, Descarga, Factura
+from app.models import Cliente, Correccion, CuentaPUC, Descarga, Factura, ReglaProveedor
+from app.seed import sembrar
 from app.services import classifier, descarga as proc_descarga, jobs, siigo
 from app.services.dian_robot import EnlaceInvalido, validar_enlace
 from app.services.nit import formatear
@@ -54,6 +55,21 @@ def _descarga_o_404(s: Session, descarga_id: int) -> Descarga:
 def config():
     st = get_settings()
     return {"demo_mode": st.demo_mode, "dry_run": st.dry_run}
+
+
+@router.post("/demo/reiniciar")
+def reiniciar_demo(s: Session = Depends(get_session)):
+    """Solo en DEMO_MODE: borra descargas, facturas, correcciones y reglas, y vuelve a sembrar."""
+    if not get_settings().demo_mode:
+        raise HTTPException(403, "Solo disponible en modo demo")
+    if jobs.alguno_en_curso("descarga") or jobs.alguno_en_curso("subida"):
+        raise HTTPException(409, "Espera a que termine la descarga o subida en curso")
+    for modelo in (Correccion, Factura, Descarga, ReglaProveedor, CuentaPUC, Cliente):
+        s.exec(sql_delete(modelo))
+    s.commit()
+    sembrar(s)
+    jobs.limpiar()
+    return {"ok": True}
 
 
 @router.get("/clientes")

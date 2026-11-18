@@ -48,7 +48,10 @@
   </section>
 
   <section style="max-width:920px">
-    <h2 style="font-size:16px;margin-bottom:8px">Descargas anteriores de este cliente</h2>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+      <h2 style="font-size:16px;margin-bottom:8px">Descargas anteriores de este cliente</h2>
+      <a href="#" id="reiniciar" class="hidden" style="font-size:12px;color:#5F6573">Reiniciar demo</a>
+    </div>
     <div id="anteriores"></div>
   </section>
 </main>
@@ -92,6 +95,15 @@
     cliente.innerHTML = cs.map(c => `<option value="${c.id}">${API.esc(c.razon_social)} · NIT ${c.nit}</option>`).join('');
     cliente.onchange();
   });
+
+  // Botón discreto, solo en modo demo: deja la demo como nueva (sin confirmación del navegador).
+  API.get('/api/config').then(c => reiniciar.classList.toggle('hidden', !c.demo_mode));
+  reiniciar.onclick = async e => {
+    e.preventDefault();
+    if (reiniciar.dataset.ok !== '1') { reiniciar.dataset.ok = '1'; reiniciar.textContent = '¿Seguro? Clic otra vez para reiniciar'; return; }
+    try { await API.post('/api/demo/reiniciar'); location.reload(); }
+    catch (x) { err.textContent = x.message; err.classList.remove('hidden'); reiniciar.dataset.ok = ''; reiniciar.textContent = 'Reiniciar demo'; }
+  };
 
   continuar.onclick = async e => {
     e.preventDefault(); err.classList.add('hidden');

@@ -28,7 +28,8 @@ app/
     excel_dian.py    # listado "documentos recibidos" → cruce por CUFE
     validacion.py    # rechazos (comprador, CUFE repetido) y alertas (totales, DV, rango)
     descarga.py      # procesador común: demo / robot / plan B → leer → validar → cruzar → clasificar
-    classifier.py    # reglas → Haiku (tool use) → supervisor
+    classifier.py    # reglas → IA → supervisor (umbral 0.80 y margen 15 pts)
+    ia_haiku.py      # Claude Haiku con salida estructurada; contexto solo del mismo cliente
     siigo.py         # cliente API Siigo Nube (+ DRY_RUN / demo)
     jobs.py          # estado en memoria de tareas en curso (progreso, pausa, token)
   static/            # copia de design/ conectada a la API (mismo HTML/CSS)
@@ -83,5 +84,6 @@ Se lee solo vía `app/config.py`. Si falta una llave y no estamos en DEMO_MODE/D
 
 ## Pendientes
 - **Siigo (fase 5)**: sin credenciales API todavía. Se mantiene `DRY_RUN=true` (subida simulada).
+- **IA real (fase 4)**: código listo en `app/services/ia_haiku.py` (Haiku, salida estructurada). Se activa con `DEMO_MODE=false` + `ANTHROPIC_API_KEY`; sin llave las facturas sin regla van al supervisor. Falta probar con la llave real.
 - **Selectores DIAN reales**: falta `samples/dian_codegen.py` para ajustar `dian_selectores.py` y probar con un token real.
 - **Alertas/faltantes en pantalla 4**: la API ya las expone; falta OK del usuario para mostrarlas (cambio de diseño).

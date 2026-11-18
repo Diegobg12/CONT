@@ -56,6 +56,13 @@ def alguno_en_curso(tipo: str) -> bool:
     return any(j.tipo == tipo and not j.terminado for j in _jobs.values())
 
 
+def limpiar() -> None:
+    """Olvida las tareas terminadas (reinicio de la demo)."""
+    with _lock:
+        for k in [k for k, j in _jobs.items() if j.terminado]:
+            del _jobs[k]
+
+
 def lanzar(descarga_id: int, tipo: str, objetivo, token: str | None = None) -> Job:
     with _lock:
         if en_curso(descarga_id, tipo):

@@ -1,7 +1,7 @@
 """Clasificación de facturas: reglas del proveedor → IA → supervisor.
 
 Todo se filtra por cliente_id: nunca se mezclan reglas ni ejemplos entre clientes.
-Fase 1: la IA está simulada en DEMO_MODE (fixtures/demo_ia.json). La fase 4 conecta Claude Haiku.
+IA: en DEMO_MODE se simula (fixtures/demo_ia.json); con DEMO_MODE=false y ANTHROPIC_API_KEY usa Claude Haiku.
 """
 from __future__ import annotations
 
@@ -28,11 +28,14 @@ def _tipo(session: Session, cliente_id: int, codigo: str) -> str | None:
     return c.tipo if c else None
 
 
-def _consultar_ia(factura: Factura, settings: Settings) -> dict | None:
+def _consultar_ia(session: Session, factura: Factura, settings: Settings) -> dict | None:
     if settings.demo_mode:
         r = _demo_ia().get(factura.proveedor_nit)
         return dict(r, modelo="demo") if r else None
-    return None  # Fase 4: Claude Haiku con tool use.
+    if not settings.anthropic_api_key:
+        return {"error": "IA desactivada: falta ANTHROPIC_API_KEY"}
+    from app.services import ia_haiku
+    return ia_haiku.sugerir(session, factura, settings)
 
 
 def necesita_supervisor(confianza: float, confianza2: float, settings: Settings) -> bool:
@@ -53,10 +56,11 @@ def clasificar(session: Session, factura: Factura, settings: Settings) -> Factur
         factura.estado = "clasificada"
         return factura
 
-    ia = _consultar_ia(factura, settings)
-    if not ia:
+    ia = _consultar_ia(session, factura, settings)
+    if not ia or "error" in ia:
         factura.estado, factura.origen = "supervisor", None
-        factura.explicacion = "Proveedor sin regla y sin sugerencia de la IA."
+        factura.respuesta_ia = ia or {}
+        factura.explicacion = (ia or {}).get("error") or "Proveedor sin regla y sin sugerencia de la IA."
         return factura
 
     factura.respuesta_ia = ia
@@ -70,7 +74,8 @@ def clasificar(session: Session, factura: Factura, settings: Settings) -> Factur
         factura.confianza = ia["confianza"]
     else:
         factura.cuenta_codigo = ia["cuenta"]
-        factura.tipo = _tipo(session, factura.cliente_id, ia["cuenta"])
+        factura.tipo = ia.get("tipo") or _tipo(session, factura.cliente_id, ia["cuenta"])
+        factura.centro_costo = ia.get("centro_costo")
         factura.origen, factura.confianza, factura.estado = "ia", ia["confianza"], "clasificada"
     return factura
 
