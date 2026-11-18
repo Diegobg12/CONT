@@ -1,6 +1,7 @@
 """Proceso de descarga: DIAN (demo, robot o plan B) → lectura XML → validación → cruce → clasificación."""
 from __future__ import annotations
 
+import shutil
 import time
 
 from sqlmodel import Session, delete, select
@@ -145,11 +146,34 @@ def plan_b(archivos: list[tuple[str, bytes]], listado: bytes | None):
     return correr
 
 
-def robot_real(job: Job) -> None:
-    """Fase 3: robot Playwright con navegador visible. Aún no implementado."""
-    job.tomar_token()
+def robot_real(job: Job, opciones=None) -> None:
+    """Robot asistido (navegador visible). Los archivos descargados se borran al terminar."""
+    from app.services.dian_robot import RobotDIAN, RobotError
+
+    token = job.tomar_token()
+    carpeta = ROOT / "downloads" / f"descarga_{job.descarga_id}"
     with Session(get_engine()) as s:
         d = s.get(Descarga, job.descarga_id)
-        d.estado, d.error = "error", "El robot real de la DIAN llega en la fase 3. Usa DEMO_MODE=true o el plan B."
+        d.estado, d.origen, d.error = "descargando", "robot", None
         s.add(d); s.commit()
-        job.error = d.error
+
+        def al_pausar(pausado: bool) -> None:
+            d.estado = "pausada" if pausado else "descargando"
+            s.add(d); s.commit()
+
+        try:
+            robot = RobotDIAN(job, token, d.fecha_ini, d.fecha_fin, carpeta, al_pausar, opciones)
+            token = None
+            archivos, listado = robot.correr()
+        except (RobotError, ValueError) as e:
+            d.estado, d.error = "error", str(e)
+            s.add(d); s.commit()
+            job.error = d.error
+            shutil.rmtree(carpeta, ignore_errors=True)
+            return
+        finally:
+            token = None
+        try:
+            procesar(s, d, job, archivos, listado)
+        finally:
+            shutil.rmtree(carpeta, ignore_errors=True)

@@ -51,6 +51,11 @@ def en_curso(descarga_id: int, tipo: str) -> bool:
     return bool(j and not j.terminado)
 
 
+def alguno_en_curso(tipo: str) -> bool:
+    """Una empresa a la vez: ¿hay alguna tarea de este tipo corriendo?"""
+    return any(j.tipo == tipo and not j.terminado for j in _jobs.values())
+
+
 def lanzar(descarga_id: int, tipo: str, objetivo, token: str | None = None) -> Job:
     with _lock:
         if en_curso(descarga_id, tipo):

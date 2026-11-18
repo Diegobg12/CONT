@@ -74,3 +74,14 @@ Se lee solo vía `app/config.py`. Si falta una llave y no estamos en DEMO_MODE/D
 - Origen de clasificación: `regla` | `ia` | `supervisor` (se guarda qué regla o qué respuesta de IA se usó).
 - Cada fase termina con pruebas que pasan y un commit (`fase N`).
 - DEMO_MODE debe funcionar siempre sin red ni llaves.
+
+## Robot DIAN (fase 3)
+- `app/services/dian_robot.py`: Playwright **visible**, pausa ante verificación humana, ritmo humano, una empresa a la vez. `headless=True` solo en tests.
+- `app/services/dian_selectores.py`: **único** archivo a tocar si la DIAN cambia su página. Hoy es una primera versión sin grabación real.
+- `tests/mock_dian.py`: DIAN simulada local para probar el robot (login, rango, paginación, Excel, captcha, token vencido).
+- Descargas temporales en `downloads/descarga_N/` (fuera de git); se borran al terminar.
+
+## Pendientes
+- **Siigo (fase 5)**: sin credenciales API todavía. Se mantiene `DRY_RUN=true` (subida simulada).
+- **Selectores DIAN reales**: falta `samples/dian_codegen.py` para ajustar `dian_selectores.py` y probar con un token real.
+- **Alertas/faltantes en pantalla 4**: la API ya las expone; falta OK del usuario para mostrarlas (cambio de diseño).

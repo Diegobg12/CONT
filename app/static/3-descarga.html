@@ -42,6 +42,24 @@
       <a href="#" id="planb" style="font-size:14px;font-weight:600">¿Falló la DIAN? Subir el Excel y los ZIP a mano (plan B)</a>
       <a class="btn btn-primary disabled" id="ver" href="4-revision.html">Descargando…</a>
     </div>
+
+    <!-- Plan B: subir a mano el Excel y los ZIP descargados del portal de la DIAN -->
+    <div class="hidden" id="planbForm" style="display:flex;flex-direction:column;gap:14px;border-top:1px solid #ECEDF2;padding-top:20px">
+      <div>
+        <h2 style="font-size:18px">Plan B · subir los archivos a mano</h2>
+        <p class="sub">Descarga del portal de la DIAN el Excel de documentos recibidos y los ZIP de las facturas, y súbelos aquí. El proceso sigue igual.</p>
+      </div>
+      <div class="grid2">
+        <label class="field">Excel del listado (opcional)
+          <input class="input" type="file" id="pbExcel" accept=".xlsx" style="padding-top:14px"></label>
+        <label class="field">ZIP o XML de las facturas
+          <input class="input" type="file" id="pbZip" accept=".zip,.xml" multiple style="padding-top:14px"></label>
+      </div>
+      <div class="row-end">
+        <button type="button" class="btn btn-ghost" id="pbCancelar">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="pbSubir">Procesar archivos</button>
+      </div>
+    </div>
   </section>
 </main>
 </div></div>
@@ -50,6 +68,22 @@
 <script>
   const D = API.requerirDescarga();
   ver.href = '4-revision.html?d=' + D;
+  planb.onclick = e => { e.preventDefault(); planbForm.classList.toggle('hidden'); };
+  pbCancelar.onclick = () => planbForm.classList.add('hidden');
+  pbSubir.onclick = async () => {
+    if (!pbZip.files.length) { err.textContent = 'Elige al menos un ZIP o XML.'; err.classList.remove('hidden'); return; }
+    const fd = new FormData();
+    [...pbZip.files].forEach(f => fd.append('archivos', f));
+    if (pbExcel.files[0]) fd.append('listado', pbExcel.files[0]);
+    pbSubir.classList.add('disabled'); pbSubir.textContent = 'Subiendo…';
+    try {
+      const r = await fetch(`/api/descargas/${D}/plan-b`, { method: 'POST', body: fd });
+      if (!r.ok) throw new Error(await API.error(r));
+      planbForm.classList.add('hidden'); pend = null;
+      clearInterval(timer); timer = setInterval(pintar, 1000); pintar();
+    } catch (x) { err.textContent = x.message; err.classList.remove('hidden'); }
+    finally { pbSubir.classList.remove('disabled'); pbSubir.textContent = 'Procesar archivos'; }
+  };
   let pend = null, timer;
 
   function porcentaje(j, listo) {
@@ -88,12 +122,16 @@
     pausa.classList.toggle('hidden', !(j && j.pausa));
     err.classList.toggle('hidden', !error); err.textContent = error || '';
     titulo.textContent = listo ? 'Descarga completa' : error ? 'La descarga se detuvo' : 'Descargando…';
+    const avisos = [];
+    if (d.rechazadas.length) avisos.push(`${d.rechazadas.length} ${d.rechazadas.length === 1 ? 'archivo no se importó' : 'archivos no se importaron'}`);
+    if (d.faltantes.length) avisos.push(`${d.faltantes.length} ${d.faltantes.length === 1 ? 'factura del listado llegó' : 'facturas del listado llegaron'} sin XML`);
     detalle.textContent = listo
-      ? `${d.total} facturas descargadas y clasificadas. ${pend} ${pend === 1 ? 'necesita' : 'necesitan'} revisión del supervisor.`
-      : error ? 'Puedes volver a intentar con un token nuevo o usar el plan B.'
+      ? `${d.total} facturas descargadas y clasificadas. ${pend} ${pend === 1 ? 'necesita' : 'necesitan'} revisión del supervisor.` + (avisos.length ? ' ' + avisos.join(' · ') + '.' : '')
+      : error ? 'Vuelve al paso 2 con un token nuevo o usa el plan B de abajo.'
       : (j && etapa === 2 ? `Factura ${j.n} de ${total} · no cierres esta ventana` : 'No cierres esta ventana');
     ver.classList.toggle('disabled', !listo); ver.textContent = listo ? 'Ver facturas →' : 'Descargando…';
-    if (listo || error) clearInterval(timer);
+    if (error && !(j && !j.terminado)) planbForm.classList.remove('hidden');
+    if (listo || (error && !(j && !j.terminado))) clearInterval(timer);
   }
   pintar(); timer = setInterval(pintar, 1000);
 </script>

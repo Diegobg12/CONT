@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.db import get_session
 from app.models import Cliente, Correccion, CuentaPUC, Descarga, Factura
 from app.services import classifier, descarga as proc_descarga, jobs, siigo
+from app.services.dian_robot import EnlaceInvalido, validar_enlace
 from app.services.nit import formatear
 
 router = APIRouter(prefix="/api")
@@ -115,7 +116,15 @@ def iniciar(descarga_id: int, body: Token, s: Session = Depends(get_session)):
     d = _descarga_o_404(s, descarga_id)
     if d.estado not in ("creada", "error"):
         raise HTTPException(409, "Esta descarga ya se inició")
-    objetivo = proc_descarga.simular_dian if get_settings().demo_mode else proc_descarga.robot_real
+    demo = get_settings().demo_mode
+    if not demo:
+        try:
+            validar_enlace(body.token)  # el mensaje de error no incluye el enlace
+        except EnlaceInvalido as e:
+            raise HTTPException(422, str(e))
+        if jobs.alguno_en_curso("descarga"):
+            raise HTTPException(409, "El robot ya está descargando otra empresa. Una empresa a la vez.")
+    objetivo = proc_descarga.simular_dian if demo else proc_descarga.robot_real
     d.error = None
     s.add(d); s.commit()
     try:
