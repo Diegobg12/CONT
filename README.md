@@ -20,6 +20,23 @@ Beta para la demo con Luis: descargar facturas recibidas de la DIAN con el token
 
 **Prioridad si no alcanza el tiempo:** modo demo completo, después el lector de XML y la clasificación, y al final el robot real y Siigo real.
 
+## Cómo correr la beta
+
+Requiere Python 3.11+.
+
+```bash
+# Python 3.12 vía uv (este Mac es Intel y brew no lo instala sin Command Line Tools)
+uv venv --python 3.12 .venv && source .venv/bin/activate
+uv pip install -r requirements.txt
+python -m scripts.generar_fixtures      # solo si quieres regenerar fixtures/
+uvicorn app.main:app --reload            # abre http://127.0.0.1:8000
+pytest -q
+```
+
+Con `DEMO_MODE=true` (por defecto) el flujo completo funciona sin DIAN, sin Siigo y sin llaves:
+12 facturas de ejemplo (3 quedan para el supervisor) y subida simulada.
+La base de datos se crea sola en `data/app.db` (bórrala para empezar de cero).
+
 ## Carpetas
 
 | Carpeta | Contenido |

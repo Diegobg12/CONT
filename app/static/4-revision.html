@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 4 · Revisión de facturas</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell"><div class="app">
+<nav id="nav"></nav>
+<main style="gap:22px">
+  <header style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px">
+    <div style="flex:1 1 280px">
+      <p class="eyebrow" id="eyebrow">Facturas DIAN</p>
+      <h1>Revisa las facturas antes de subirlas</h1>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <a class="btn btn-primary disabled" id="subir" href="5-subida.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V9"/><path d="m7 14 5-5 5 5"/><path d="M5 4h14"/></svg>
+        Subir a Siigo</a>
+      <span id="faltan" style="font-size:12px;color:#A84B00;font-weight:600"></span>
+    </div>
+  </header>
+  <ol class="steps" data-current="3"></ol>
+
+  <section class="kpis">
+    <div class="kpi"><p>Facturas descargadas</p><strong id="kTotal">–</strong></div>
+    <div class="kpi blue"><p>Con código contable</p><strong id="kAsig">–</strong></div>
+    <div class="kpi orange"><p>Para el supervisor</p><strong id="kPend">–</strong></div>
+    <div class="kpi"><p>Valor total</p><strong id="kValor">–</strong></div>
+  </section>
+
+  <section class="card" style="max-width:none;padding:22px;gap:14px">
+    <div class="row-between" style="align-items:center">
+      <h2 style="font-size:18px">Listado de facturas</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="tabs"></div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Fecha</th><th>Código único (CUFE)</th><th>Descripción</th><th style="text-align:right">Valor</th><th style="width:320px">Código contable</th></tr></thead>
+        <tbody id="filas"></tbody>
+      </table>
+    </div>
+    <p class="eyebrow" id="pie"></p>
+  </section>
+</main>
+</div></div>
+<script src="common.js"></script>
+<script src="api.js"></script>
+<script>
+  const D = API.requerirDescarga();
+  let datos = null, tab = 'all';
+  const pct = c => Math.round(c * 100) + '%';
+  const pend = f => f.estado === 'supervisor';
+
+  function pista(f) {
+    const s = f.sugerencias;
+    if (!s.length) return f.explicacion || 'Proveedor sin regla ni sugerencia.';
+    const ops = s.map(x => `${x.codigo} ${x.nombre} (${pct(x.confianza)})`).join(' o ');
+    return `Sugerencia IA: ${ops}. ${f.explicacion || ''}`;
+  }
+
+  function pintar() {
+    const fs = datos.facturas, n = fs.filter(pend).length;
+    const subidas = fs.filter(f => f.estado === 'subida').length;
+    kTotal.textContent = fs.length; kPend.textContent = n; kAsig.textContent = fs.length - n;
+    kValor.textContent = API.millones(datos.kpis.valor_total);
+    const subirOk = n === 0 && fs.length > 0 && subidas < fs.length && ['revision', 'subida'].includes(datos.descarga.estado);
+    subir.classList.toggle('disabled', !subirOk);
+    faltan.textContent = n ? 'Asigna ' + n + (n === 1 ? ' factura' : ' facturas') + ' para continuar'
+      : (fs.length && subidas === fs.length ? 'Todas las facturas ya están en Siigo' : '');
+    tabs.innerHTML = [['all', 'Todas'], ['pend', 'Para el supervisor (' + n + ')'], ['ok', 'Con código']]
+      .map(([k, l]) => `<button type="button" class="chip ${tab === k ? 'on' : ''}" data-k="${k}">${l}</button>`).join('');
+    tabs.querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.k; pintar(); });
+    const visibles = fs.filter(f => tab === 'all' || (tab === 'pend' ? pend(f) : !pend(f)));
+    filas.innerHTML = visibles.map(f => {
+      let celda;
+      if (pend(f)) {
+        celda = `<label class="pend-label">El sistema no pudo determinarlo · asigna la cuenta
+          <select data-id="${f.id}"><option value="">Elegir código contable…</option>${datos.puc.map(p => `<option value="${p.codigo}">${p.codigo} · ${API.esc(p.nombre)}</option>`).join('')}</select></label>
+          <p style="margin:6px 0 0;font-size:12px;color:#4A4F5C;line-height:1.4">${API.esc(pista(f))}</p>`;
+      } else if (f.origen === 'supervisor') {
+        celda = `<p style="margin:0;font-weight:600">${API.esc(f.cuenta)}</p><p class="origin human">Asignada por el supervisor · regla guardada</p>`;
+      } else {
+        const o = f.origen === 'regla' ? ['rule', 'Regla del proveedor'] : ['ai', 'IA · ' + pct(f.confianza)];
+        celda = `<p style="margin:0;font-weight:600">${API.esc(f.cuenta)}</p><p class="origin ${o[0]}">${o[1]}</p>`;
+      }
+      return `<tr class="${pend(f) ? 'pending' : ''}"><td style="color:#5F6573;white-space:nowrap">${API.fecha(f.fecha)}</td><td class="mono" title="${f.cufe}">${API.cufeCorto(f.cufe)}</td>
+        <td><p style="margin:0;font-weight:600">${API.esc(f.descripcion)}</p><p style="margin:2px 0 0;font-size:12px;color:#5F6573">${API.esc(f.proveedor)}</p></td>
+        <td class="num">${API.pesos(f.total)}</td><td>${celda}</td></tr>`;
+    }).join('');
+    pie.textContent = `Mostrando ${visibles.length} de ${fs.length} facturas · las asignaciones del supervisor se guardan como regla para ese proveedor.`;
+    filas.querySelectorAll('select').forEach(s => s.onchange = async () => {
+      if (!s.value) return;
+      s.disabled = true;
+      try { await API.post(`/api/facturas/${s.dataset.id}/asignar`, { cuenta_codigo: s.value }); }
+      catch (x) { faltan.textContent = x.message; }
+      await cargar();
+    });
+  }
+
+  async function cargar() {
+    datos = await API.get(`/api/descargas/${D}/facturas`);
+    eyebrow.textContent = API.eyebrow(datos.descarga);
+    pintar();
+  }
+
+  subir.onclick = async e => {
+    e.preventDefault();
+    subir.classList.add('disabled');
+    try { await API.post(`/api/descargas/${D}/subir`); location.href = '5-subida.html?d=' + D; }
+    catch (x) { faltan.textContent = x.message; subir.classList.remove('disabled'); }
+  };
+  cargar();
+</script>
+</body>
+</html>

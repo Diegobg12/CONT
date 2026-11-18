@@ -1,0 +1,58 @@
+{
+  "901556677": {
+    "cuenta": "5145",
+    "confianza": 0.52,
+    "segunda": "1520",
+    "confianza2": 0.38,
+    "explicacion": "Mezcla servicio y repuestos; los repuestos podrían capitalizarse."
+  },
+  "860078912": {
+    "cuenta": "5195",
+    "confianza": 0.96,
+    "segunda": "5135",
+    "confianza2": 0.03,
+    "explicacion": "Útiles y papelería de oficina."
+  },
+  "79845123": {
+    "cuenta": "5110",
+    "confianza": 0.92,
+    "segunda": "5135",
+    "confianza2": 0.06,
+    "explicacion": "Servicio profesional prestado por persona natural."
+  },
+  "901998877": {
+    "cuenta": "5240",
+    "confianza": 0.47,
+    "segunda": "1435",
+    "confianza2": 0.44,
+    "explicacion": "¿Se vende o se regala? Depende del uso del exhibidor."
+  },
+  "890223344": {
+    "cuenta": "5235",
+    "confianza": 0.88,
+    "segunda": "5135",
+    "confianza2": 0.07,
+    "explicacion": "Flete de entrega a clientes (gasto de ventas)."
+  },
+  "900990011": {
+    "cuenta": "1528",
+    "confianza": 0.61,
+    "segunda": "5195",
+    "confianza2": 0.33,
+    "explicacion": "Depende de la política de activos del cliente."
+  },
+  "860002400": {
+    "cuenta": "5130",
+    "confianza": 0.94,
+    "segunda": "5195",
+    "confianza2": 0.03,
+    "explicacion": "Prima de seguro de vehículos."
+  },
+  "901445566": {
+    "cuenta": "5135",
+    "confianza": 0.9,
+    "segunda": "5195",
+    "confianza2": 0.05,
+    "explicacion": "Servicio de aseo contratado."
+  }
+}

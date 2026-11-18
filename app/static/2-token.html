@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 2 · Token DIAN</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell"><div class="app">
+<nav id="nav"></nav>
+<main>
+  <header>
+    <p class="eyebrow" id="eyebrow">Facturas DIAN</p>
+    <h1>Iniciar sesión en la DIAN</h1>
+  </header>
+  <ol class="steps" data-current="1"></ol>
+
+  <section class="card">
+    <div style="display:flex;align-items:center;gap:14px">
+      <span style="width:52px;height:52px;border-radius:16px;background:#E6EEFF;display:flex;align-items:center;justify-content:center;flex:none">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2F6BFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9"/><path d="m17 6 3 3"/><path d="m15 8 2 2"/></svg>
+      </span>
+      <div>
+        <h2>Se necesita un token de la DIAN</h2>
+        <p class="sub" style="margin-top:4px">Con él el sistema entra a la DIAN como el cliente y baja sus facturas.</p>
+      </div>
+    </div>
+
+    <ul class="checks" style="--x:0">
+      <li id="s1"><span class="dot">1</span>
+        <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+          <b>Solicita el token</b>
+          <button type="button" class="btn btn-dark" id="pedir" style="align-self:flex-start">Solicitar token a la DIAN</button>
+          <small id="enviado" class="hidden" style="color:#1D6B2A;font-weight:600;font-size:14px"></small>
+        </div></li>
+      <li><span class="dot">2</span><div><b>Abre el correo del representante legal</b><small>Copia el enlace o el código que envió la DIAN.</small></div></li>
+      <li style="border-bottom:1px solid #ECEDF2"><span class="dot">3</span>
+        <label style="flex:1;display:flex;flex-direction:column;gap:8px;font-size:16px;font-weight:600;color:#15171C">Pega aquí el token
+          <input class="input" type="password" id="token" autocomplete="off" placeholder="Pega el enlace o el código del token">
+          <small style="font-weight:400">El token solo se usa en esta sesión.</small></label></li>
+    </ul>
+
+    <div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#4A4F5C">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4A4F5C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      El token se usa una sola vez y no se guarda. El acceso queda registrado con la autorización del cliente.
+    </div>
+    <div class="note warn hidden" id="err"></div>
+
+    <div class="row-between">
+      <a class="btn btn-ghost" href="1-cliente-fechas.html">← Atrás</a>
+      <a class="btn btn-primary disabled" id="seguir" href="3-descarga.html">Pega el token para continuar</a>
+    </div>
+  </section>
+</main>
+</div></div>
+<script src="common.js"></script>
+<script src="api.js"></script>
+<script>
+  const D = API.requerirDescarga();
+  API.get('/api/descargas/' + D).then(d => {
+    eyebrow.textContent = API.eyebrow(d);
+    if (!['creada', 'error'].includes(d.estado)) location.replace('3-descarga.html?d=' + D);
+  });
+  pedir.onclick = async () => {
+    try {
+      const r = await API.post(`/api/descargas/${D}/solicitar-token`);
+      enviado.textContent = `Enviado a ${r.enviado_a} · vence en ${r.vence_min} minutos`;
+      pedir.classList.add('hidden'); enviado.classList.remove('hidden');
+      s1.classList.add('ok'); s1.querySelector('.dot').textContent = '✓';
+    } catch (x) { err.textContent = x.message; err.classList.remove('hidden'); }
+  };
+  token.oninput = () => {
+    const ok = token.value.trim().length > 0;
+    seguir.classList.toggle('disabled', !ok);
+    seguir.textContent = ok ? 'Ingresar a la DIAN y descargar →' : 'Pega el token para continuar';
+  };
+  seguir.onclick = async e => {
+    e.preventDefault(); err.classList.add('hidden');
+    const t = token.value.trim();
+    token.value = ''; // no dejar el token en el formulario
+    seguir.classList.add('disabled');
+    try {
+      await API.post(`/api/descargas/${D}/iniciar`, { token: t });
+      location.href = '3-descarga.html?d=' + D;
+    } catch (x) { err.textContent = x.message; err.classList.remove('hidden'); token.oninput(); }
+  };
+</script>
+</body>
+</html>

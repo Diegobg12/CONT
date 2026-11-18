@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 5 · Subida a Siigo</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell"><div class="app">
+<nav id="nav"></nav>
+<main>
+  <div class="toast hidden" id="toast" role="status">
+    <span class="ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+    <div><p style="margin:0;font-size:15px;font-weight:600">Subida exitosa</p><p style="margin:2px 0 0;font-size:13px;color:#B9BCC6" id="toastTxt"></p></div>
+  </div>
+
+  <header>
+    <p class="eyebrow" id="eyebrow">Facturas DIAN</p>
+    <h1>Subida a Siigo</h1>
+  </header>
+  <ol class="steps" data-current="4"></ol>
+
+  <section class="card" id="trabajando" style="gap:14px">
+    <h2>Subiendo facturas a Siigo Nube…</h2>
+    <div class="progress" role="progressbar" aria-label="Avance de la subida"><div id="bar"></div></div>
+    <p class="eyebrow" style="font-size:14px" id="detalle"></p>
+  </section>
+
+  <section class="card hidden" id="listo" style="align-items:center;text-align:center;padding:40px 32px;gap:20px">
+    <span style="width:88px;height:88px;border-radius:50%;background:#E2F3E4;display:flex;align-items:center;justify-content:center">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#1D6B2A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>
+    </span>
+    <div>
+      <h2 style="font-size:32px;letter-spacing:-.02em" id="listoTitulo">Subida exitosa</h2>
+      <p class="sub" style="font-size:16px" id="listoSub"></p>
+    </div>
+    <div class="kpis" style="width:100%;grid-template-columns:repeat(4,minmax(0,1fr))">
+      <div class="kpi" style="background:#F6F7FB"><p>Comprobantes creados</p><strong id="rComp">0</strong></div>
+      <div class="kpi" style="background:#F6F7FB"><p>Fallidas</p><strong id="rFall">0</strong></div>
+      <div class="kpi" style="background:#F6F7FB"><p>Reglas nuevas guardadas</p><strong id="rReglas">0</strong></div>
+      <div class="kpi" style="background:#F6F7FB"><p>Tiempo total</p><strong id="rTiempo">–</strong></div>
+    </div>
+    <div class="note warn hidden" id="motivos" style="width:100%;text-align:left"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <a class="btn btn-primary" href="1-cliente-fechas.html">Descargar otro cliente</a>
+      <a class="btn btn-ghost" id="verFacturas" href="4-revision.html">Ver facturas</a>
+    </div>
+  </section>
+</main>
+</div></div>
+<script src="common.js"></script>
+<script src="api.js"></script>
+<script>
+  const D = API.requerirDescarga();
+  verFacturas.href = '4-revision.html?d=' + D;
+  const tiempo = s => s < 60 ? s + ' s' : Math.round(s / 60) + ' min';
+  let timer;
+  async function pintar() {
+    const d = await API.get('/api/descargas/' + D);
+    eyebrow.textContent = API.eyebrow(d);
+    const j = d.job_subida;
+    if (j && !j.terminado) {
+      const p = Math.round(100 * j.n / Math.max(1, j.total));
+      bar.style.width = p + '%';
+      detalle.textContent = `Factura ${j.n} de ${j.total} · ${j.mensaje || 'conectando con Siigo Nube'}`;
+      return;
+    }
+    if (d.estado === 'revision' && !j) { location.replace('4-revision.html?d=' + D); return; }
+    const r = d.resumen_subida;
+    if (!r) { if (j && j.error) { detalle.textContent = j.error; clearInterval(timer); } return; }
+    clearInterval(timer);
+    bar.style.width = '100%';
+    const ok = r.fallidas === 0;
+    listoTitulo.textContent = ok ? 'Subida exitosa' : 'Subida con errores';
+    listoSub.textContent = ok
+      ? `Las ${r.comprobantes} facturas de ${d.cliente.razon_social} quedaron registradas en Siigo Nube.`
+      : `${r.comprobantes} facturas registradas y ${r.fallidas} con error. Revisa el motivo abajo.`;
+    rComp.textContent = r.comprobantes; rFall.textContent = r.fallidas;
+    rReglas.textContent = r.reglas_nuevas; rTiempo.textContent = tiempo(r.segundos);
+    if (r.motivos.length) {
+      motivos.innerHTML = r.motivos.map(m => `<div><strong>${API.esc(m.factura)}:</strong> ${API.esc(m.motivo)}</div>`).join('');
+      motivos.classList.remove('hidden');
+    }
+    toastTxt.textContent = `${r.comprobantes} facturas en Siigo Nube${r.simulada ? ' (simulado)' : ''}`;
+    trabajando.classList.add('hidden'); listo.classList.remove('hidden');
+    if (ok) toast.classList.remove('hidden');
+  }
+  pintar(); timer = setInterval(pintar, 1000);
+</script>
+</body>
+</html>

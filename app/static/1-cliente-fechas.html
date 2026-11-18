@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 1 · Cliente y fechas</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell"><div class="app">
+<nav id="nav"></nav>
+<main>
+  <header>
+    <p class="eyebrow">Facturas DIAN · nueva descarga</p>
+    <h1>Descargar facturas de un cliente</h1>
+  </header>
+  <ol class="steps" data-current="0"></ol>
+
+  <section class="card">
+    <div>
+      <h2>¿De qué cliente y en qué fechas?</h2>
+      <p class="sub">El sistema bajará de la DIAN todas las facturas de compra que recibió el cliente en ese rango.</p>
+    </div>
+    <div class="grid2">
+      <label class="field">Cliente
+        <select class="input" id="cliente" style="font-weight:600"></select></label>
+      <label class="field">Programa contable
+        <input class="input" type="text" readonly value="Siigo Nube" id="programa"></label>
+      <label class="field">Fecha inicial
+        <input class="input" type="date" id="ini"></label>
+      <label class="field">Fecha final
+        <input class="input" type="date" id="fin"></label>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span class="eyebrow">Atajos:</span>
+      <button type="button" class="chip on" data-rango="anterior">Mes anterior</button>
+      <button type="button" class="chip" data-rango="este">Este mes</button>
+      <button type="button" class="chip" data-rango="bimestre">Último bimestre</button>
+    </div>
+    <div class="note info">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1E4FD6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+      <p style="margin:0">En el siguiente paso la DIAN enviará un token al correo del RUT del cliente: <strong id="email"></strong></p>
+    </div>
+    <div class="note warn hidden" id="err"></div>
+    <div class="row-end">
+      <a class="btn btn-ghost" href="1-cliente-fechas.html">Cancelar</a>
+      <a class="btn btn-primary" id="continuar" href="2-token.html">Continuar → Token DIAN</a>
+    </div>
+  </section>
+
+  <section style="max-width:920px">
+    <h2 style="font-size:16px;margin-bottom:8px">Descargas anteriores de este cliente</h2>
+    <div id="anteriores"></div>
+  </section>
+</main>
+</div></div>
+<script src="common.js"></script>
+<script src="api.js"></script>
+<script>
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const hoy = new Date();
+  const rangos = {
+    anterior: [new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1), new Date(hoy.getFullYear(), hoy.getMonth(), 0)],
+    este: [new Date(hoy.getFullYear(), hoy.getMonth(), 1), hoy],
+    bimestre: [new Date(hoy.getFullYear(), hoy.getMonth() - 2, 1), new Date(hoy.getFullYear(), hoy.getMonth(), 0)]
+  };
+  const chips = document.querySelectorAll('.chip');
+  const ponerRango = k => { [ini.value, fin.value] = rangos[k].map(iso); };
+  chips.forEach(c => c.onclick = () => {
+    chips.forEach(x => x.classList.remove('on')); c.classList.add('on'); ponerRango(c.dataset.rango);
+  });
+  [ini, fin].forEach(i => i.oninput = () => chips.forEach(x => x.classList.remove('on')));
+  ponerRango('anterior');
+
+  const fila = (izq, der) => `<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #E3E5EC;font-size:14px"><span>${izq}</span>${der}</div>`;
+  const ESTADOS = { subida: ['Subidas a Siigo', '#1D6B2A'], revision: ['En revisión', '#A84B00'], subiendo: ['Subiendo…', '#2F6BFF'] };
+  async function anteriores() {
+    const ds = await API.get(`/api/clientes/${cliente.value}/descargas`);
+    document.getElementById('anteriores').innerHTML = ds.length ? ds.map(d => {
+      const [txt, color] = ESTADOS[d.estado] || ['Descargadas', '#5F6573'];
+      const link = d.estado === 'revision' ? `<a href="4-revision.html?d=${d.id}" style="color:${color};font-weight:600">${txt}</a>` : `<span style="color:${color};font-weight:600">${txt}</span>`;
+      return fila(`${API.fecha(d.fecha_ini)} – ${API.fecha(d.fecha_fin)} · ${d.total} facturas`, link);
+    }).join('') : fila('Aún no hay descargas de este cliente.', '');
+  }
+
+  let clientes = [];
+  cliente.onchange = () => {
+    const c = clientes.find(x => String(x.id) === cliente.value);
+    email.textContent = c.email; programa.value = c.programa; anteriores();
+  };
+  API.get('/api/clientes').then(cs => {
+    clientes = cs;
+    cliente.innerHTML = cs.map(c => `<option value="${c.id}">${API.esc(c.razon_social)} · NIT ${c.nit}</option>`).join('');
+    cliente.onchange();
+  });
+
+  continuar.onclick = async e => {
+    e.preventDefault(); err.classList.add('hidden');
+    try {
+      const d = await API.post('/api/descargas', { cliente_id: Number(cliente.value), fecha_ini: ini.value, fecha_fin: fin.value });
+      location.href = '2-token.html?d=' + d.id;
+    } catch (x) { err.textContent = x.message; err.classList.remove('hidden'); }
+  };
+</script>
+</body>
+</html>

@@ -38,8 +38,9 @@ tests/
 
 ## Comandos
 ```bash
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+# Python 3.12 vía uv (este Mac es Intel y brew no lo instala sin Command Line Tools)
+uv venv --python 3.12 .venv && source .venv/bin/activate
+uv pip install -r requirements.txt
 python -m playwright install chromium
 uvicorn app.main:app --reload          # http://127.0.0.1:8000
 pytest -q

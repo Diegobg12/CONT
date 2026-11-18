@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 3 · Descarga</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell"><div class="app">
+<nav id="nav"></nav>
+<main>
+  <header>
+    <p class="eyebrow" id="eyebrow">Facturas DIAN</p>
+    <h1>Descargando facturas de la DIAN</h1>
+  </header>
+  <ol class="steps" data-current="2"></ol>
+
+  <section class="card">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+        <h2 id="titulo">Descargando…</h2>
+        <span id="pct" style="font-size:28px;font-weight:600;color:#2F6BFF">0%</span>
+      </div>
+      <div class="progress" role="progressbar" aria-label="Avance de la descarga"><div id="bar"></div></div>
+      <p class="eyebrow" id="detalle" style="font-size:14px">Iniciando…</p>
+    </div>
+
+    <ul class="checks" id="checks"></ul>
+
+    <!-- Estado de pausa: se muestra cuando la DIAN pide verificación humana -->
+    <div class="note warn hidden" id="pausa">
+      <strong>La DIAN pidió verificar que hay una persona.</strong> Complétalo en la ventana del navegador del robot; la descarga sigue sola.
+    </div>
+    <div class="note warn hidden" id="err"></div>
+
+    <div class="note neutral">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A4F5C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+      Si la DIAN pide verificar que hay una persona, el robot se pausa y te muestra la ventana para continuar.
+    </div>
+
+    <div class="row-between">
+      <a href="#" id="planb" style="font-size:14px;font-weight:600">¿Falló la DIAN? Subir el Excel y los ZIP a mano (plan B)</a>
+      <a class="btn btn-primary disabled" id="ver" href="4-revision.html">Descargando…</a>
+    </div>
+  </section>
+</main>
+</div></div>
+<script src="common.js"></script>
+<script src="api.js"></script>
+<script>
+  const D = API.requerirDescarga();
+  ver.href = '4-revision.html?d=' + D;
+  let pend = null, timer;
+
+  function porcentaje(j, listo) {
+    if (listo) return 100;
+    if (!j) return 0;
+    if (j.etapa === 0) return 5;
+    if (j.etapa === 1) return 25;
+    if (j.etapa === 2) return Math.round(45 + 40 * (j.n / Math.max(1, j.total)));
+    return 92;
+  }
+
+  async function pintar() {
+    const d = await API.get('/api/descargas/' + D);
+    eyebrow.textContent = API.eyebrow(d);
+    const j = d.job_descarga;
+    const listo = ['revision', 'subiendo', 'subida'].includes(d.estado);
+    const error = d.error || (j && j.error);
+    const etapa = listo ? 4 : (j ? j.etapa : 0);
+    const total = j ? j.total : d.total;
+    if (listo && pend === null) {
+      const f = await API.get(`/api/descargas/${D}/facturas`);
+      pend = f.kpis.pendientes;
+    }
+    const textos = [
+      'Con el token del cliente',
+      total ? `${total} facturas del ${API.fecha(d.fecha_ini)} al ${API.fecha(d.fecha_fin)}` : 'Buscando documentos recibidos',
+      `${j && etapa >= 2 ? (etapa > 2 ? total : j.n) : 0} de ${total || '…'} · con su XML`,
+      listo ? `${d.total - pend} asignadas · ${pend} quedan para el supervisor` : (j && etapa === 3 ? j.mensaje : 'Reglas del proveedor, IA y supervisor')
+    ];
+    checks.innerHTML = d.etapas.map((t, i) => {
+      const ok = etapa > i, run = !ok && etapa === i && !error;
+      return `<li class="${ok ? 'ok' : run ? 'run' : ''}"><span class="dot">${ok ? '✓' : run ? '…' : i + 1}</span><div><b>${t}</b><small>${API.esc(textos[i])}</small></div></li>`;
+    }).join('');
+    const p = porcentaje(j, listo);
+    bar.style.width = p + '%'; pct.textContent = p + '%';
+    pausa.classList.toggle('hidden', !(j && j.pausa));
+    err.classList.toggle('hidden', !error); err.textContent = error || '';
+    titulo.textContent = listo ? 'Descarga completa' : error ? 'La descarga se detuvo' : 'Descargando…';
+    detalle.textContent = listo
+      ? `${d.total} facturas descargadas y clasificadas. ${pend} ${pend === 1 ? 'necesita' : 'necesitan'} revisión del supervisor.`
+      : error ? 'Puedes volver a intentar con un token nuevo o usar el plan B.'
+      : (j && etapa === 2 ? `Factura ${j.n} de ${total} · no cierres esta ventana` : 'No cierres esta ventana');
+    ver.classList.toggle('disabled', !listo); ver.textContent = listo ? 'Ver facturas →' : 'Descargando…';
+    if (listo || error) clearInterval(timer);
+  }
+  pintar(); timer = setInterval(pintar, 1000);
+</script>
+</body>
+</html>
