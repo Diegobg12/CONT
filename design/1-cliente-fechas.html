@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 1 · Cliente y fechas</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell"><div class="app">
+<nav id="nav"></nav>
+<main>
+  <header>
+    <p class="eyebrow">Facturas DIAN · nueva descarga</p>
+    <h1>Descargar facturas de un cliente</h1>
+  </header>
+  <ol class="steps" data-current="0"></ol>
+
+  <section class="card">
+    <div>
+      <h2>¿De qué cliente y en qué fechas?</h2>
+      <p class="sub">El sistema bajará de la DIAN todas las facturas de compra que recibió el cliente en ese rango.</p>
+    </div>
+    <div class="grid2">
+      <label class="field">Cliente
+        <select class="input" id="cliente" style="font-weight:600">
+          <option data-email="r••••••@andina.co">Distribuidora Andina SAS · NIT 900.456.789-1</option>
+          <option data-email="g••••••@cafemontana.co">Café Montaña SAS · NIT 901.223.004-6</option>
+          <option data-email="c••••••@transllano.co">Transportes Llano · NIT 900.871.330-9</option>
+        </select></label>
+      <label class="field">Programa contable
+        <input class="input" type="text" readonly value="Siigo Nube"></label>
+      <label class="field">Fecha inicial
+        <input class="input" type="date" id="ini" value="2026-10-01"></label>
+      <label class="field">Fecha final
+        <input class="input" type="date" id="fin" value="2026-10-31"></label>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span class="eyebrow">Atajos:</span>
+      <button type="button" class="chip on" data-ini="2026-10-01" data-fin="2026-10-31">Mes anterior</button>
+      <button type="button" class="chip" data-ini="2026-11-01" data-fin="2026-11-18">Este mes</button>
+      <button type="button" class="chip" data-ini="2026-09-01" data-fin="2026-10-31">Último bimestre</button>
+    </div>
+    <div class="note info">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1E4FD6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+      <p style="margin:0">En el siguiente paso la DIAN enviará un token al correo del RUT del cliente: <strong id="email">r••••••@andina.co</strong></p>
+    </div>
+    <div class="row-end">
+      <a class="btn btn-ghost" href="#">Cancelar</a>
+      <a class="btn btn-primary" href="2-token.html">Continuar → Token DIAN</a>
+    </div>
+  </section>
+
+  <section style="max-width:920px">
+    <h2 style="font-size:16px;margin-bottom:8px">Descargas anteriores de este cliente</h2>
+    <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #E3E5EC;font-size:14px"><span>01/09/2026 – 30/09/2026 · 205 facturas</span><span style="color:#1D6B2A;font-weight:600">Subidas a Siigo</span></div>
+    <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #E3E5EC;font-size:14px"><span>01/08/2026 – 31/08/2026 · 198 facturas</span><span style="color:#1D6B2A;font-weight:600">Subidas a Siigo</span></div>
+  </section>
+</main>
+</div></div>
+<script src="common.js"></script>
+<script>
+  const chips = document.querySelectorAll('.chip');
+  chips.forEach(c => c.onclick = () => {
+    chips.forEach(x => x.classList.remove('on')); c.classList.add('on');
+    ini.value = c.dataset.ini; fin.value = c.dataset.fin;
+  });
+  [ini, fin].forEach(i => i.oninput = () => chips.forEach(x => x.classList.remove('on')));
+  cliente.onchange = () => email.textContent = cliente.selectedOptions[0].dataset.email;
+</script>
+</body>
+</html>

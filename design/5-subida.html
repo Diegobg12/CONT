@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 5 · Subida a Siigo</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell"><div class="app">
+<nav id="nav"></nav>
+<main>
+  <div class="toast hidden" id="toast" role="status">
+    <span class="ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+    <div><p style="margin:0;font-size:15px;font-weight:600">Subida exitosa</p><p style="margin:2px 0 0;font-size:13px;color:#B9BCC6">212 facturas en Siigo Nube</p></div>
+  </div>
+
+  <header>
+    <p class="eyebrow">Facturas DIAN · Distribuidora Andina SAS · 01/10/2026 – 31/10/2026</p>
+    <h1>Subida a Siigo</h1>
+  </header>
+  <ol class="steps" data-current="4"></ol>
+
+  <section class="card" id="trabajando" style="gap:14px">
+    <h2>Subiendo facturas a Siigo Nube…</h2>
+    <div class="progress" role="progressbar" aria-label="Avance de la subida"><div id="bar"></div></div>
+    <p class="eyebrow" style="font-size:14px" id="detalle"></p>
+  </section>
+
+  <section class="card hidden" id="listo" style="align-items:center;text-align:center;padding:40px 32px;gap:20px">
+    <span style="width:88px;height:88px;border-radius:50%;background:#E2F3E4;display:flex;align-items:center;justify-content:center">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#1D6B2A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>
+    </span>
+    <div>
+      <h2 style="font-size:32px;letter-spacing:-.02em">Subida exitosa</h2>
+      <p class="sub" style="font-size:16px">Las 212 facturas de Distribuidora Andina SAS quedaron registradas en Siigo Nube.</p>
+    </div>
+    <div class="kpis" style="width:100%;grid-template-columns:repeat(4,minmax(0,1fr))">
+      <div class="kpi" style="background:#F6F7FB"><p>Comprobantes creados</p><strong>212</strong></div>
+      <div class="kpi" style="background:#F6F7FB"><p>Fallidas</p><strong>0</strong></div>
+      <div class="kpi" style="background:#F6F7FB"><p>Reglas nuevas guardadas</p><strong>3</strong></div>
+      <div class="kpi" style="background:#F6F7FB"><p>Tiempo total</p><strong>7 min</strong></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <a class="btn btn-primary" href="1-cliente-fechas.html">Descargar otro cliente</a>
+      <a class="btn btn-ghost" href="4-revision.html">Ver facturas</a>
+    </div>
+  </section>
+</main>
+</div></div>
+<script src="common.js"></script>
+<script>
+  const TOTAL = 212; let p = 0;
+  const t = setInterval(() => {
+    p = Math.min(100, p + 4);
+    bar.style.width = p + '%';
+    detalle.textContent = 'Factura ' + Math.round(p / 100 * TOTAL) + ' de ' + TOTAL + ' · creando comprobantes de compra';
+    if (p >= 100) {
+      clearInterval(t);
+      trabajando.classList.add('hidden'); listo.classList.remove('hidden'); toast.classList.remove('hidden');
+    }
+  }, 80);
+</script>
+</body>
+</html>

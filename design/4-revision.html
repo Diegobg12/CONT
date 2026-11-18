@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 4 · Revisión de facturas</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell"><div class="app">
+<nav id="nav"></nav>
+<main style="gap:22px">
+  <header style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px">
+    <div style="flex:1 1 280px">
+      <p class="eyebrow">Facturas DIAN · Distribuidora Andina SAS · 01/10/2026 – 31/10/2026</p>
+      <h1>Revisa las facturas antes de subirlas</h1>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <a class="btn btn-primary disabled" id="subir" href="5-subida.html">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V9"/><path d="m7 14 5-5 5 5"/><path d="M5 4h14"/></svg>
+        Subir a Siigo</a>
+      <span id="faltan" style="font-size:12px;color:#A84B00;font-weight:600"></span>
+    </div>
+  </header>
+  <ol class="steps" data-current="3"></ol>
+
+  <section class="kpis">
+    <div class="kpi"><p>Facturas descargadas</p><strong>212</strong></div>
+    <div class="kpi blue"><p>Con código contable</p><strong id="kAsig">209</strong></div>
+    <div class="kpi orange"><p>Para el supervisor</p><strong id="kPend">3</strong></div>
+    <div class="kpi"><p>Valor total</p><strong>$186,4 M</strong></div>
+  </section>
+
+  <section class="card" style="max-width:none;padding:22px;gap:14px">
+    <div class="row-between" style="align-items:center">
+      <h2 style="font-size:18px">Listado de facturas</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="tabs"></div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Fecha</th><th>Código único (CUFE)</th><th>Descripción</th><th style="text-align:right">Valor</th><th style="width:320px">Código contable</th></tr></thead>
+        <tbody id="filas"></tbody>
+      </table>
+    </div>
+    <p class="eyebrow">Mostrando 10 de 212 facturas · las asignaciones del supervisor se guardan como regla para ese proveedor.</p>
+  </section>
+</main>
+</div></div>
+<script src="common.js"></script>
+<script>
+  // Origen de la clasificación: 'rule' = regla del proveedor, 'ai' = IA con % de confianza, null = para el supervisor
+  const PUC = ['1435 · Mercancías no fabricadas','1520 · Maquinaria y equipo','1528 · Equipo de computación','5135 · Servicios','5145 · Mantenimiento y reparaciones','5195 · Diversos','5235 · Servicios (ventas)'];
+  const data = [
+    {id:'a',fecha:'01/10/2026',cufe:'3f9c1a…e820',desc:'Cajas de cartón corrugado x 500',prov:'Empaques Andinos SAS',valor:'$8.420.000',cuenta:'1435 · Mercancías no fabricadas',origen:'rule'},
+    {id:'b',fecha:'03/10/2026',cufe:'7b22d0…41ac',desc:'Arriendo bodega octubre',prov:'Inmobiliaria Sur',valor:'$4.800.000',cuenta:'5120 · Arrendamientos',origen:'rule'},
+    {id:'c',fecha:'05/10/2026',cufe:'c81e44…9b03',desc:'Combustible vehículo de reparto',prov:'Estación de Servicio La 80',valor:'$386.500',cuenta:'5195 · Diversos',origen:'rule'},
+    {id:'d',fecha:'07/10/2026',cufe:'4d0f7e…a51c',desc:'Mantenimiento y repuestos montacargas',prov:'TecnoServicios del Caribe',valor:'$2.150.000',cuenta:null,pista:'Sugerencia IA: 5145 Mantenimiento (52%) o 1520 Maquinaria (38%). Proveedor nuevo.'},
+    {id:'e',fecha:'09/10/2026',cufe:'91aa3b…07de',desc:'Resmas de papel y tóner',prov:'Papelería Central',valor:'$412.300',cuenta:'5195 · Diversos',origen:'ai',conf:'96%'},
+    {id:'f',fecha:'12/10/2026',cufe:'e5c219…6f88',desc:'Honorarios asesoría laboral',prov:'Asesorías Legales Pérez',valor:'$3.000.000',cuenta:'5110 · Honorarios',origen:'ai',conf:'92%'},
+    {id:'g',fecha:'15/10/2026',cufe:'2a7d90…c3e1',desc:'Leche entera x 1.200 unidades',prov:'Lácteos La Pradera SAS',valor:'$12.780.000',cuenta:'1435 · Mercancías no fabricadas',origen:'rule'},
+    {id:'h',fecha:'18/10/2026',cufe:'6e03bb…d94f',desc:'Kit promocional exhibidor x 30',prov:'Distribuciones Omega',valor:'$1.890.000',cuenta:null,pista:'Sugerencia IA: 5235 Publicidad (47%) o 1435 Mercancías (44%). ¿Se vende o se regala?'},
+    {id:'i',fecha:'21/10/2026',cufe:'b47f12…2a60',desc:'Flete Bogotá – Tunja',prov:'Transportes Rápido Sur',valor:'$960.000',cuenta:'5235 · Servicios (ventas)',origen:'ai',conf:'88%'},
+    {id:'j',fecha:'24/10/2026',cufe:'0c95e8…71b2',desc:'Computador portátil 16 GB',prov:'Mundo Digital SAS',valor:'$5.640.000',cuenta:null,pista:'Sugerencia IA: 1528 Equipo de cómputo (61%) o 5195 Diversos (33%). Depende de la política de activos.'}
+  ];
+  const asig = {}; let tab = 'all';
+  const pend = d => !d.cuenta && !asig[d.id];
+  function pintar() {
+    const n = data.filter(pend).length;
+    kPend.textContent = n; kAsig.textContent = 212 - n;
+    subir.classList.toggle('disabled', n > 0);
+    faltan.textContent = n ? 'Asigna ' + n + (n === 1 ? ' factura' : ' facturas') + ' para continuar' : '';
+    tabs.innerHTML = [['all','Todas'],['pend','Para el supervisor (' + n + ')'],['ok','Con código']]
+      .map(([k, l]) => `<button type="button" class="chip ${tab === k ? 'on' : ''}" data-k="${k}">${l}</button>`).join('');
+    tabs.querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.k; pintar(); });
+    filas.innerHTML = data.filter(d => tab === 'all' || (tab === 'pend' ? pend(d) : !pend(d))).map(d => {
+      let celda;
+      if (pend(d)) {
+        celda = `<label class="pend-label">El sistema no pudo determinarlo · asigna la cuenta
+          <select data-id="${d.id}"><option value="">Elegir código contable…</option>${PUC.map(p => `<option>${p}</option>`).join('')}</select></label>
+          <p style="margin:6px 0 0;font-size:12px;color:#4A4F5C;line-height:1.4">${d.pista}</p>`;
+      } else if (asig[d.id]) {
+        celda = `<p style="margin:0;font-weight:600">${asig[d.id]}</p><p class="origin human">Asignada por el supervisor · regla guardada</p>`;
+      } else {
+        celda = `<p style="margin:0;font-weight:600">${d.cuenta}</p><p class="origin ${d.origen}">${d.origen === 'rule' ? 'Regla del proveedor' : 'IA · ' + d.conf}</p>`;
+      }
+      return `<tr class="${pend(d) ? 'pending' : ''}"><td style="color:#5F6573;white-space:nowrap">${d.fecha}</td><td class="mono">${d.cufe}</td>
+        <td><p style="margin:0;font-weight:600">${d.desc}</p><p style="margin:2px 0 0;font-size:12px;color:#5F6573">${d.prov}</p></td>
+        <td class="num">${d.valor}</td><td>${celda}</td></tr>`;
+    }).join('');
+    filas.querySelectorAll('select').forEach(s => s.onchange = () => { if (s.value) { asig[s.dataset.id] = s.value; pintar(); } });
+  }
+  pintar();
+</script>
+</body>
+</html>

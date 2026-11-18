@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+*.sqlite
+data/
+downloads/
+samples/*
+!samples/README.md
+.pytest_cache/
+.DS_Store

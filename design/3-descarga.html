@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 3 · Descarga</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell"><div class="app">
+<nav id="nav"></nav>
+<main>
+  <header>
+    <p class="eyebrow">Facturas DIAN · Distribuidora Andina SAS · 01/10/2026 – 31/10/2026</p>
+    <h1>Descargando facturas de la DIAN</h1>
+  </header>
+  <ol class="steps" data-current="2"></ol>
+
+  <section class="card">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+        <h2 id="titulo">Descargando…</h2>
+        <span id="pct" style="font-size:28px;font-weight:600;color:#2F6BFF">0%</span>
+      </div>
+      <div class="progress" role="progressbar" aria-label="Avance de la descarga"><div id="bar"></div></div>
+      <p class="eyebrow" id="detalle" style="font-size:14px">Iniciando…</p>
+    </div>
+
+    <ul class="checks" id="checks"></ul>
+
+    <!-- Estado de pausa: se muestra cuando la DIAN pide verificación humana -->
+    <div class="note warn hidden" id="pausa">
+      <strong>La DIAN pidió verificar que hay una persona.</strong> Complétalo en la ventana del navegador del robot; la descarga sigue sola.
+    </div>
+
+    <div class="note neutral">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A4F5C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+      Si la DIAN pide verificar que hay una persona, el robot se pausa y te muestra la ventana para continuar.
+    </div>
+
+    <div class="row-between">
+      <a href="#" style="font-size:14px;font-weight:600">¿Falló la DIAN? Subir el Excel y los ZIP a mano (plan B)</a>
+      <a class="btn btn-primary disabled" id="ver" href="4-revision.html">Descargando…</a>
+    </div>
+  </section>
+</main>
+</div></div>
+<script src="common.js"></script>
+<script>
+  const TOTAL = 212;
+  const pasos = [
+    [10, 'Sesión iniciada en la DIAN', () => 'Con el token del cliente'],
+    [45, 'Listado de facturas recibidas', () => TOTAL + ' facturas del 01/10/2026 al 31/10/2026'],
+    [85, 'Facturas descargadas', n => n + ' de ' + TOTAL + ' · con su XML'],
+    [100, 'Clasificación con el código contable', () => '209 asignadas · 3 quedan para el supervisor']
+  ];
+  let p = 0;
+  function pintar() {
+    const n = Math.min(TOTAL, Math.round(Math.max(0, p - 10) / 75 * TOTAL));
+    bar.style.width = p + '%'; pct.textContent = p + '%';
+    checks.innerHTML = pasos.map((x, i) => {
+      const ok = p >= x[0], run = !ok && (i === 0 || p >= pasos[i - 1][0]);
+      return `<li class="${ok ? 'ok' : run ? 'run' : ''}"><span class="dot">${ok ? '✓' : run ? '…' : i + 1}</span><div><b>${x[1]}</b><small>${x[2](n)}</small></div></li>`;
+    }).join('');
+    const done = p >= 100;
+    titulo.textContent = done ? 'Descarga completa' : 'Descargando…';
+    detalle.textContent = done ? TOTAL + ' facturas descargadas y clasificadas. 3 necesitan revisión del supervisor.' : 'Factura ' + n + ' de ' + TOTAL + ' · no cierres esta ventana';
+    ver.classList.toggle('disabled', !done); ver.textContent = done ? 'Ver facturas →' : 'Descargando…';
+  }
+  const t = setInterval(() => { p = Math.min(100, p + 2); pintar(); if (p >= 100) clearInterval(t); }, 80);
+  pintar();
+</script>
+</body>
+</html>
