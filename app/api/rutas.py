@@ -4,13 +4,14 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field, model_validator
 from sqlmodel import Session, select
+from sqlmodel import delete as sql_delete
 
 from app.config import get_settings
 from app.db import get_session
-from app.models import Cliente, CuentaPUC, Descarga, Factura
+from app.models import Cliente, Correccion, CuentaPUC, Descarga, Factura
 from app.services import classifier, descarga as proc_descarga, jobs, siigo
 from app.services.nit import formatear
 
@@ -34,7 +35,8 @@ def _descarga_json(s: Session, d: Descarga) -> dict:
     c = s.get(Cliente, d.cliente_id)
     out = {"id": d.id, "cliente": _cliente_json(c), "fecha_ini": d.fecha_ini.isoformat(),
            "fecha_fin": d.fecha_fin.isoformat(), "estado": d.estado, "origen": d.origen, "total": d.total,
-           "error": d.error, "resumen_subida": d.resumen_subida or None, "etapas": proc_descarga.ETAPAS}
+           "error": d.error, "resumen_subida": d.resumen_subida or None, "etapas": proc_descarga.ETAPAS,
+           "faltantes": d.faltantes or [], "rechazadas": d.rechazadas or [], "listado": d.listado or None}
     for tipo, estado in estados.items():
         out[f"job_{tipo}"] = estado
     return out
@@ -123,13 +125,44 @@ def iniciar(descarga_id: int, body: Token, s: Session = Depends(get_session)):
     return {"ok": True}
 
 
+MAX_PLAN_B = 200 * 1024 * 1024  # 200 MB en total
+
+
+@router.post("/descargas/{descarga_id}/plan-b")
+async def subir_plan_b(descarga_id: int, archivos: list[UploadFile] = File(...),
+                       listado: UploadFile | None = File(None), s: Session = Depends(get_session)):
+    """Plan B: Excel del listado (opcional) + ZIP/XML descargados a mano de la DIAN."""
+    d = _descarga_o_404(s, descarga_id)
+    if jobs.en_curso(d.id, "descarga"):
+        raise HTTPException(409, "Hay una descarga en curso para este cliente")
+    if d.estado in ("subiendo", "subida"):
+        raise HTTPException(409, "Esta descarga ya se subió a Siigo")
+    datos, tam = [], 0
+    for a in archivos:
+        contenido = await a.read()
+        tam += len(contenido)
+        datos.append((a.filename or "archivo", contenido))
+    excel = await listado.read() if listado is not None and listado.filename else None
+    tam += len(excel or b"")
+    if tam > MAX_PLAN_B:
+        raise HTTPException(413, "Los archivos superan 200 MB")
+    if d.total:  # reemplaza lo que hubiera de un intento anterior en esta descarga
+        ids = s.exec(select(Factura.id).where(Factura.descarga_id == d.id, Factura.estado != "subida")).all()
+        s.exec(sql_delete(Correccion).where(Correccion.factura_id.in_(ids)))
+        s.exec(sql_delete(Factura).where(Factura.id.in_(ids)))
+        s.commit()
+    jobs.lanzar(d.id, "descarga", proc_descarga.plan_b(datos, excel))
+    return {"ok": True, "archivos": len(datos)}
+
+
 def _fila(f: Factura, puc: dict[str, str]) -> dict:
     cuenta = f"{f.cuenta_codigo} · {puc.get(f.cuenta_codigo, '')}" if f.cuenta_codigo else None
     return {"id": f.id, "fecha": f.fecha.isoformat(), "cufe": f.cufe, "numero": f.numero,
             "descripcion": f.descripcion, "proveedor": f.proveedor_nombre, "total": str(f.total),
             "cuenta": cuenta, "origen": f.origen, "confianza": f.confianza, "estado": f.estado,
             "sugerencias": [dict(x, nombre=puc.get(x["codigo"], "")) for x in (f.sugerencias or [])],
-            "explicacion": f.explicacion, "regla_nueva": f.origen == "supervisor", "error": f.error}
+            "explicacion": f.explicacion, "regla_nueva": f.origen == "supervisor", "error": f.error,
+            "alertas": f.alertas or []}
 
 
 @router.get("/descargas/{descarga_id}/facturas")

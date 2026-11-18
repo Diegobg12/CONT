@@ -37,7 +37,7 @@ def party(rol: str, nit: str, nombre: str) -> str:
   </cac:{rol}>"""
 
 
-def invoice(i: int, p: dict) -> tuple[str, str, str]:
+def invoice(i: int, p: dict) -> tuple[str, str, str, dict]:
     numero = f"FE{1000 + i * 37}"
     fecha = p["fecha"]
     lineas = [(d, Decimal(q), Decimal(q) * Decimal(pu)) for d, q, pu in p["lineas"]]
@@ -105,7 +105,7 @@ def invoice(i: int, p: dict) -> tuple[str, str, str]:
   </cac:LegalMonetaryTotal>
 {xml_lineas}
 </Invoice>"""
-    return numero, cufe, inv
+    return numero, cufe, inv, {"iva": iva, "total": total, "ret": ret or Decimal(0)}
 
 
 def attached(numero: str, cufe: str, p: dict, inv: str) -> str:
@@ -142,18 +142,44 @@ def attached(numero: str, cufe: str, p: dict, inv: str) -> str:
 """
 
 
+ENCABEZADOS = ["Tipo de documento", "CUFE/CUDE", "Folio", "Prefijo", "Divisa", "Forma de Pago", "Medio de Pago",
+               "Fecha Emisión", "Fecha Recepción", "NIT Emisor", "Nombre Emisor", "NIT Receptor", "Nombre Receptor",
+               "IVA", "ICA", "IC", "INC", "Rete IVA", "Rete Renta", "Rete ICA", "Total", "Estado", "Grupo"]
+
+
+def fila_listado(numero: str, cufe: str, p: dict, tot: dict, tipo: str = "Factura electrónica") -> list:
+    d = p["fecha"].split("-")[::-1]
+    return [tipo, cufe, numero[2:], numero[:2], "COP", "Crédito", "Transferencia", "-".join(d), "-".join(d),
+            p["nit"], p["nombre"], COMPRADOR_DEMO["nit"], COMPRADOR_DEMO["razon_social"], float(tot["iva"]), 0, 0, 0,
+            0, float(tot["ret"]), 0, float(tot["total"]), "Aprobado", "Recibido"]
+
+
+def escribir_listado(ruta: Path, filas: list) -> None:
+    """Excel con el formato del export "Documentos recibidos" del portal DIAN."""
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Documentos"
+    ws.append(ENCABEZADOS)
+    for numero, cufe, p, tot in filas:
+        ws.append(fila_listado(numero, cufe, p, tot))
+    wb.save(ruta)
+
+
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     for f in OUT.glob("*.xml"):
         f.unlink()
-    ia = {}
+    ia, filas = {}, []
     for i, p in enumerate(PROVEEDORES, 1):
-        numero, cufe, inv = invoice(i, p)
+        numero, cufe, inv, tot = invoice(i, p)
         (OUT / f"{i:02d}_{numero}.xml").write_text(attached(numero, cufe, p, inv), encoding="utf-8")
+        filas.append((numero, cufe, p, tot))
         c = p["clasif"]
         if c[0] == "ia":
             ia[p["nit"]] = {"cuenta": c[1], "confianza": c[2], "segunda": c[3], "confianza2": c[4], "explicacion": c[5]}
     (OUT / "demo_ia.json").write_text(json.dumps(ia, ensure_ascii=False, indent=2), encoding="utf-8")
+    escribir_listado(OUT / "listado_demo.xlsx", filas)
     print(f"{len(PROVEEDORES)} facturas de ejemplo en {OUT}")
 
 

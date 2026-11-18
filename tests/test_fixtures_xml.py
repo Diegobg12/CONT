@@ -15,7 +15,9 @@ def test_hay_12_fixtures():
 def test_fixtures_se_leen_y_cuadran():
     cufes = set()
     for ruta in FIXTURES:
-        (f,) = leer_ruta(ruta)
+        (r,) = leer_ruta(ruta)
+        assert r.error is None, r.error
+        f = r.factura
         assert len(f.cufe) == 96
         assert f.comprador_nit == COMPRADOR_DEMO["nit"]
         assert f.proveedor_dv == calcular_dv(f.proveedor_nit)
@@ -27,4 +29,5 @@ def test_fixtures_se_leen_y_cuadran():
 
 
 def test_dv_nit_conocido():
-    assert calcular_dv("860002400") == "2"  # ejemplo verificable a mano
+    assert calcular_dv("860002400") == "2"  # verificable a mano
+    assert calcular_dv("900456789") == "4"

@@ -72,3 +72,49 @@ def test_rango_invalido(client):
     cid = client.get("/api/clientes").json()[0]["id"]
     r = client.post("/api/descargas", json={"cliente_id": cid, "fecha_ini": "2026-10-31", "fecha_fin": "2026-10-01"})
     assert r.status_code == 422
+
+
+# ---------- Plan B (subida manual de Excel + ZIP) ----------
+
+def _zip_fixtures() -> bytes:
+    import io, zipfile
+    from pathlib import Path
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for p in sorted((Path(__file__).resolve().parent.parent / "fixtures").glob("*.xml")):
+            z.writestr(p.name, p.read_bytes())
+        z.writestr("roto.xml", b"<no")
+    return buf.getvalue()
+
+
+def _excel_con_faltante() -> bytes:
+    import io
+    from pathlib import Path
+    from openpyxl import load_workbook
+    wb = load_workbook(Path(__file__).resolve().parent.parent / "fixtures" / "listado_demo.xlsx")
+    ws = wb.active
+    fila = [c.value for c in ws[2]]
+    fila[1] = "f" * 96  # CUFE que no vino en los ZIP
+    ws.append(fila)
+    buf = io.BytesIO(); wb.save(buf)
+    return buf.getvalue()
+
+
+def test_plan_b_con_faltantes_y_duplicados(client):
+    d = _nueva(client)
+    archivos = [("archivos", ("dian.zip", _zip_fixtures(), "application/zip"))]
+    r = client.post(f"/api/descargas/{d}/plan-b", files=archivos + [
+        ("listado", ("listado.xlsx", _excel_con_faltante(), "application/vnd.ms-excel"))])
+    assert r.status_code == 200, r.text
+    est = esperar(client, d, "descarga")
+    assert est["estado"] == "revision" and est["origen"] == "plan_b" and est["total"] == 12
+    assert len(est["faltantes"]) == 1 and est["faltantes"][0]["cufe"] == "f" * 96
+    assert [x["archivo"] for x in est["rechazadas"]] == ["dian.zip/roto.xml"]
+    assert est["listado"]["en_listado"] == 13
+
+    # Los mismos ZIP en otra descarga del mismo cliente: todo CUFE repetido
+    d2 = _nueva(client)
+    client.post(f"/api/descargas/{d2}/plan-b", files=archivos)
+    est2 = esperar(client, d2, "descarga")
+    assert est2["total"] == 0
+    assert sum("repetido" in x["motivo"] for x in est2["rechazadas"]) == 12

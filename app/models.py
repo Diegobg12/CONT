@@ -44,7 +44,9 @@ class Descarga(SQLModel, table=True):
     estado: str = "creada"
     origen: str = "robot"  # robot | plan_b | demo
     total: int = 0
-    faltantes: list = Field(default_factory=list, sa_column=Column(JSON))
+    faltantes: list = Field(default_factory=list, sa_column=Column(JSON))  # en el listado DIAN pero sin XML
+    rechazadas: list = Field(default_factory=list, sa_column=Column(JSON))  # [{archivo, cufe, motivo}]
+    listado: dict = Field(default_factory=dict, sa_column=Column(JSON))  # resumen del cruce con el Excel
     error: Optional[str] = None
     resumen_subida: dict = Field(default_factory=dict, sa_column=Column(JSON))
     creada_en: datetime = Field(default_factory=ahora)
@@ -53,7 +55,8 @@ class Descarga(SQLModel, table=True):
 
 class Factura(SQLModel, table=True):
     __tablename__ = "facturas"
-    __table_args__ = (UniqueConstraint("cliente_id", "cufe"),)
+    # AUTOINCREMENT: SQLite no reutiliza IDs de facturas borradas.
+    __table_args__ = (UniqueConstraint("cliente_id", "cufe"), {"sqlite_autoincrement": True})
     id: Optional[int] = Field(default=None, primary_key=True)
     descarga_id: int = Field(foreign_key="descargas.id", index=True)
     cliente_id: int = Field(foreign_key="clientes.id", index=True)
@@ -70,6 +73,7 @@ class Factura(SQLModel, table=True):
     iva: Decimal = Field(default=Decimal(0), max_digits=16, decimal_places=2)
     retenciones: Decimal = Field(default=Decimal(0), max_digits=16, decimal_places=2)
     total: Decimal = Field(default=Decimal(0), max_digits=16, decimal_places=2)
+    alertas: list = Field(default_factory=list, sa_column=Column(JSON))  # validaciones no bloqueantes
     # Clasificación
     tipo: Optional[str] = None
     cuenta_codigo: Optional[str] = None

@@ -26,11 +26,13 @@ app/
     dian_demo.py     # simulación DIAN (DEMO_MODE)
     xml_reader.py    # AttachedDocument → Invoice UBL 2.1 → dict
     excel_dian.py    # listado "documentos recibidos" → cruce por CUFE
+    validacion.py    # rechazos (comprador, CUFE repetido) y alertas (totales, DV, rango)
+    descarga.py      # procesador común: demo / robot / plan B → leer → validar → cruzar → clasificar
     classifier.py    # reglas → Haiku (tool use) → supervisor
     siigo.py         # cliente API Siigo Nube (+ DRY_RUN / demo)
     jobs.py          # estado en memoria de tareas en curso (progreso, pausa, token)
   static/            # copia de design/ conectada a la API (mismo HTML/CSS)
-fixtures/            # ~12 XML de ejemplo para DEMO_MODE (3 ambiguos)
+fixtures/            # 12 XML de ejemplo + listado_demo.xlsx + demo_ia.json (python -m scripts.generar_fixtures)
 samples/             # XML reales + dian_codegen.py — FUERA DE GIT
 data/, downloads/    # BD y descargas temporales — FUERA DE GIT
 tests/
